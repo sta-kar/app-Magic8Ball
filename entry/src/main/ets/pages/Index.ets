@@ -4,6 +4,9 @@ import { Magic8Ball } from '../entryability/Magic8Ball';
 @Component
 struct Index {
   @State private answer: ResourceStr = '';
+  @State private ballScale: number = 1;
+  private pendingDraws: number = 0;
+  private isPulseRunning: boolean = false;
   private readonly magicBall: Magic8Ball<ResourceStr> = new Magic8Ball<ResourceStr>([
     $r('app.string.answer_01'), $r('app.string.answer_02'), $r('app.string.answer_03'),
     $r('app.string.answer_04'), $r('app.string.answer_05'), $r('app.string.answer_06'),
@@ -15,7 +18,36 @@ struct Index {
   ]);
 
   private revealAnswer(): void {
-    this.answer = this.magicBall.drawAnAnswer();
+    this.pendingDraws++;
+    this.runNextPulse();
+  }
+
+  private runNextPulse(): void {
+    if (this.isPulseRunning || this.pendingDraws === 0) {
+      return;
+    }
+
+    this.isPulseRunning = true;
+    this.pendingDraws--;
+    this.getUIContext().animateTo({
+      duration: 90,
+      curve: Curve.EaseIn,
+      onFinish: () => {
+        this.answer = this.magicBall.drawAnAnswer();
+        this.getUIContext().animateTo({
+          duration: 140,
+          curve: Curve.EaseOut,
+          onFinish: () => {
+            this.isPulseRunning = false;
+            this.runNextPulse();
+          }
+        }, () => {
+          this.ballScale = 1;
+        });
+      }
+    }, () => {
+      this.ballScale = 0.94;
+    });
   }
 
   build() {
@@ -65,6 +97,7 @@ struct Index {
         .width('100%')
         .aspectRatio(1)
         .constraintSize({ maxWidth: 300, maxHeight: 300 })
+        .scale({ x: this.ballScale, y: this.ballScale })
         .onClick(() => this.revealAnswer())
         .accessibilityLevel('yes')
         .accessibilityText($r('app.string.ball_accessibility'))
